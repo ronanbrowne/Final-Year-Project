@@ -76,6 +76,8 @@
                 android:layout_weight="1"
                 android:orientation="vertical">
 
+
+
                 <TextView
                     android:id="@+id/overview"
                     android:layout_width="match_parent"
@@ -112,7 +114,18 @@
                     style="@style/WelcomeCategoryStyle"
                     tools:text="Total bikes stolen in system: " />
 
+                <ImageView
+                    android:id="@+id/notifiaction"
+                    android:layout_gravity="right"
+                    android:layout_marginRight="16dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="invisible"
+                    android:src="@drawable/ic_mail_outline_black_24dp"/>
+
             </LinearLayout>
+
+
 
 
         </LinearLayout>

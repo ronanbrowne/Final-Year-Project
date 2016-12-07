@@ -94,6 +94,7 @@ public class DatabaseFragment extends Fragment {
     String userInputAddress;
     String email = "";
     int r;
+    String input_from_reported_Location ="";
 
     Circle circle;
     private GoogleMap googleMap;
@@ -117,31 +118,64 @@ public class DatabaseFragment extends Fragment {
             switch (which) {
                 case DialogInterface.BUTTON_POSITIVE:
 
-                    //set user who reported it
-                    stolenBike.setReportedBy(email);
 
-                    stolenBike.setReportedDate(getDate());
+                    //custom alert box
+                    AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+                    builder.setTitle("Sighting Location");
+                    //grab custom layout
+                    View viewInflated = LayoutInflater.from(getContext()).inflate(R.layout.report_stolen_dialog, (ViewGroup) getView(), false);
+                    // Set up the input
+                    final EditText input = (EditText) viewInflated.findViewById(R.id.input);
+                    // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
+                    builder.setView(viewInflated);
 
-                    stolenBike.setReportedLocation("location");
+                    // Set up the buttons
+                    builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.dismiss();
+                          input_from_reported_Location = input.getText().toString();
 
-                    stolenBike.setReportedSigting(true);
+                            //set user who reported it
+                            stolenBike.setReportedBy(email);
+                            stolenBike.setReportedDate(getDate());
+                            stolenBike.setReportedLocation(input_from_reported_Location);
+                            stolenBike.setReportedSigting(true);
+
+                            mDatabaseReported.child(itemRef.getKey()).setValue(stolenBike);
+
+                            Log.v("check repoting*", stolenBike.getRegisteredBy());
+                            Log.v("check repoting*", stolenBike.getReportedDate());
+                            Log.v("check repoting*", stolenBike.getReportedLocation());
+                            Log.v("check repoting*", ""+stolenBike.isReportedSigting());
+
+
+                            //feedback
+                            Toast toast = Toast.makeText(getActivity().getApplicationContext(), "Notifiacion sent to origional owner", Toast.LENGTH_SHORT);
+                            toast.show();
+
+
+                        }
+                    });
+                    builder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    });
+
+                    builder.show();
+
 
                     //reported bike gets sent to new DB node , use same key refrence
-
                     //we will match these against a users registered bikes on login
-                    mDatabaseReported.child(itemRef.getKey()).setValue(stolenBike);
+
 
                     //send email to origional user
 
-                    Log.v("check repoting*", stolenBike.getRegisteredBy());
-                    Log.v("check repoting*", stolenBike.getReportedDate());
-                    Log.v("check repoting*", stolenBike.getReportedLocation());
-                    Log.v("check repoting*", ""+stolenBike.isReportedSigting());
 
 
-                    //feedback
-                    Toast toast = Toast.makeText(getActivity().getApplicationContext(), "Thanks:  "+ stolenBike.getRegisteredBy(), Toast.LENGTH_SHORT);
-                    toast.show();
+
 
                     break;
 

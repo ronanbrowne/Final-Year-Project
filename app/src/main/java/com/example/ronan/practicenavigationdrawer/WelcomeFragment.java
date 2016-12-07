@@ -1,20 +1,31 @@
 package com.example.ronan.practicenavigationdrawer;
 
+import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.AnimationDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
+import android.view.animation.LinearInterpolator;
+import android.widget.ArrayAdapter;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import com.google.firebase.auth.FirebaseAuth;
@@ -26,11 +37,17 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
+import static android.R.attr.animation;
+import static android.R.attr.data;
+import static android.R.attr.process;
 import static com.example.ronan.practicenavigationdrawer.R.id.upload_image;
 import static com.google.android.gms.fitness.data.zzs.Re;
+import static com.google.android.gms.internal.zzax.getKey;
 
 
 public class WelcomeFragment extends Fragment {
@@ -43,17 +60,25 @@ public class WelcomeFragment extends Fragment {
     FloatingActionButton floatingEditProfile;
     String key_passed_fromList;
     String email = "";
+    ImageView imageAnim;
 
 
     long countStolen;
     long countReg;
     long thisStolen = 0;
 
+    ArrayList<String> registeredBikeKeys = new ArrayList<>();
+    ArrayList<String> sightingBikeKeys = new ArrayList<>();
+    ArrayList<BikeData> reportedSightingsList = new ArrayList<>();
+    ArrayList<BikeData> registeredBikesList = new ArrayList<>();
+
     //Firebase variables
     private FirebaseUser mFirebaseUser;
     private DatabaseReference mDatabase;
     private DatabaseReference stolenBikesDatabse;
     private DatabaseReference mDatabaseUsers;
+    private DatabaseReference reportedStolen;
+    private DatabaseReference readReportOfStolenQuery;
 
     public WelcomeFragment() {
         // Required empty public constructor
@@ -73,7 +98,7 @@ public class WelcomeFragment extends Fragment {
                 return;
             }
 
-        user = dataSnapshot.getValue(UserData.class);
+            user = dataSnapshot.getValue(UserData.class);
 //            usernameET.setText(user.getUsername());
 //            String email.setText(user.getEmail());
 //            addressET.setText(user.getAddress());
@@ -81,11 +106,13 @@ public class WelcomeFragment extends Fragment {
             imageValue = user.getUser_image_In_Base64();
 
 
+            if (!imageValue.equals("imageValue")) {
+                getBitMapFromString(imageValue);
+            }
 
-            if(!imageValue.equals("imageValue")){
-                getBitMapFromString(imageValue);}
+        }
 
-        }    UserData user = new UserData();
+        UserData user = new UserData();
 
         @Override
         public void onCancelled(DatabaseError databaseError) {
@@ -110,15 +137,15 @@ public class WelcomeFragment extends Fragment {
     }
 
 
-
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        View rootView = inflater.inflate(R.layout.fragment_welcome, container, false);
+        final View rootView = inflater.inflate(R.layout.fragment_welcome, container, false);
         final View loadingIndicator = rootView.findViewById(R.id.loading_indicator_edit);
 
-        if(!imageValue.equals("")){
+        if (!imageValue.equals("")) {
 
         }
 
@@ -134,11 +161,14 @@ public class WelcomeFragment extends Fragment {
         //seting up firebase DB refrences
         mDatabase = FirebaseDatabase.getInstance().getReference().child("Bikes Registered By User").child(email);
         stolenBikesDatabse = FirebaseDatabase.getInstance().getReference().child("Stolen Bikes");
+        readReportOfStolenQuery = FirebaseDatabase.getInstance().getReference().child("Viewing bikes Reported Stolen").child(email);
 
         mDatabaseUsers = FirebaseDatabase.getInstance().getReference().child("User Profile Data");
         mDatabaseUsers.child(email).addValueEventListener(userDataListener);
 
+        reportedStolen = FirebaseDatabase.getInstance().getReference().child("Reported Bikes");
 
+        imageAnim = (ImageView) rootView.findViewById(R.id.notifiaction);
         registered = (TextView) rootView.findViewById(R.id.bikesRegistered);
         stolen = (TextView) rootView.findViewById(R.id.personalStolen);
         systemStolen = (TextView) rootView.findViewById(R.id.totalStolen);
@@ -157,6 +187,14 @@ public class WelcomeFragment extends Fragment {
             }
         });
 
+        imageAnim.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                FragmentManager fm = getFragmentManager();
+                fm.beginTransaction().replace(R.id.fragment_container, new ViewReportedSightingsFragment()).commit();
+            }
+        });
+
 
         //event listener for checking if bike is on stolen DB used to give correct user feedback
         ValueEventListener CountRegListener = new ValueEventListener() {
@@ -165,8 +203,62 @@ public class WelcomeFragment extends Fragment {
                 countReg = dataSnapshot.getChildrenCount();
                 for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
                     // countReg++;
+                    registeredBikeKeys.add(snapshot.getKey().toString());
+
+                    BikeData bike = snapshot.getValue(BikeData.class);
+                    registeredBikesList.add(bike);
                 }
                 registered.setText("Bikes registered to you: " + countReg);
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+            }
+        }; //end listener
+
+
+        //event listener for checking if bike is on stolen DB used to give correct user feedback
+        ValueEventListener reportedStolenListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                countReg = dataSnapshot.getChildrenCount();
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    // countReg++;
+                    sightingBikeKeys.add(snapshot.getKey().toString());
+
+                    BikeData bike = snapshot.getValue(BikeData.class);
+
+                    //get specic objects that were sighted
+                    if (registeredBikeKeys.contains(snapshot.getKey().toString())) {
+                        reportedSightingsList.add(bike);
+                        Log.v("**rprint", Arrays.toString(reportedSightingsList.toArray()));
+                        Log.v("**rprint make:", bike.getMake() + "Model: " + bike.getModel());
+
+                        readReportOfStolenQuery.child(snapshot.getKey().toString()).setValue(bike);
+                    }
+
+                }
+
+
+                reportedSightingsList.size();
+
+                List<String> list3 = new ArrayList<>();
+
+
+                for (String matches : registeredBikeKeys) {
+                    if (sightingBikeKeys.contains(matches)) {
+                        list3.add(matches);
+                        Log.v("**size", "" + list3.size());
+                    }
+                }
+
+                if (!list3.isEmpty()) {
+                    startAnim();
+                }
+
+
+                //   registered.setText("Bikes registered to you: " + countReg);
 
             }
 
@@ -186,7 +278,7 @@ public class WelcomeFragment extends Fragment {
 
                     BikeData bike = snapshot.getValue(BikeData.class);
 
-                        //check field is not null
+                    //check field is not null
                     if (bike.getRegisteredBy() != null) {
 
 
@@ -216,11 +308,54 @@ public class WelcomeFragment extends Fragment {
 
         mDatabase.addValueEventListener(CountRegListener);
         stolenBikesDatabse.addValueEventListener(CountStolenListener);
+        reportedStolen.addValueEventListener(reportedStolenListener);
+
 
         return rootView;
 
     }
 
+
+//    public void dialogBox() {
+//        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
+//        alertDialogBuilder.setMessage("Click on Image for tag");
+//        alertDialogBuilder.setPositiveButton("Ok",
+//                new DialogInterface.OnClickListener() {
+//
+//                    @Override
+//                    public void onClick(DialogInterface arg0, int arg1) {
+//                    }
+//                });
+//
+//        alertDialogBuilder.setNegativeButton("cancel",
+//                new DialogInterface.OnClickListener() {
+//
+//                    @Override
+//                    public void onClick(DialogInterface arg0, int arg1) {
+//
+//                    }
+//                });
+//
+//        AlertDialog alertDialog = alertDialogBuilder.create();
+//        alertDialog.show();
+//    }
+
+
+    //animation for notification of reported bike
+    public void startAnim() {
+        final Animation animation = new AlphaAnimation(1, 0); // Change alpha from fully visible to invisible
+        animation.setDuration(3500); // duration - half a second
+        animation.setInterpolator(new LinearInterpolator()); // do not alter animation rate
+        animation.setRepeatCount(Animation.INFINITE); // Repeat animation infinitely
+        animation.setRepeatMode(Animation.REVERSE);
+
+        imageAnim.setVisibility(View.VISIBLE);
+        imageAnim.startAnimation(animation);
+
+
+        // start the animation!
+        animation.start();
+    }
 }
 
 
