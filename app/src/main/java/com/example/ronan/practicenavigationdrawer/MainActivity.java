@@ -214,6 +214,11 @@ public class MainActivity extends AppCompatActivity
             return true;
         } else if (id == R.id.action_sign_out) {
             mFirebaseAuth.signOut();
+        }else if (id == R.id.sightings){
+            ViewReportedSightingsFragment reportSightingFragment = new ViewReportedSightingsFragment();
+            FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
+            fragmentTransaction.replace(R.id.fragment_container, reportSightingFragment);
+            fragmentTransaction.commit();
         }
 
         return super.onOptionsItemSelected(item);

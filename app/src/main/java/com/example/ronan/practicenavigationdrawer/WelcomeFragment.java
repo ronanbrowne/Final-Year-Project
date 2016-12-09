@@ -56,11 +56,11 @@ public class WelcomeFragment extends Fragment {
     TextView stolen;
     TextView systemStolen;
     TextView user;
+    TextView reportedSigntings;
     CircleImageView profielPic;
     FloatingActionButton floatingEditProfile;
     String key_passed_fromList;
     String email = "";
-    ImageView imageAnim;
 
 
     long countStolen;
@@ -168,10 +168,11 @@ public class WelcomeFragment extends Fragment {
 
         reportedStolen = FirebaseDatabase.getInstance().getReference().child("Reported Bikes");
 
-        imageAnim = (ImageView) rootView.findViewById(R.id.notifiaction);
+
         registered = (TextView) rootView.findViewById(R.id.bikesRegistered);
         stolen = (TextView) rootView.findViewById(R.id.personalStolen);
         systemStolen = (TextView) rootView.findViewById(R.id.totalStolen);
+        reportedSigntings = (TextView) rootView.findViewById(R.id.reportedSigntings);
         user = (TextView) rootView.findViewById(R.id.userProfile);
         floatingEditProfile = (FloatingActionButton) rootView.findViewById(R.id.floatingConfirmEdit);
         profielPic = (CircleImageView) rootView.findViewById(R.id.profile_image);
@@ -187,13 +188,13 @@ public class WelcomeFragment extends Fragment {
             }
         });
 
-        imageAnim.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                FragmentManager fm = getFragmentManager();
-                fm.beginTransaction().replace(R.id.fragment_container, new ViewReportedSightingsFragment()).commit();
-            }
-        });
+//        imageAnim.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                FragmentManager fm = getFragmentManager();
+//                fm.beginTransaction().replace(R.id.fragment_container, new ViewReportedSightingsFragment()).commit();
+//            }
+//        });
 
 
         //event listener for checking if bike is on stolen DB used to give correct user feedback
@@ -236,7 +237,9 @@ public class WelcomeFragment extends Fragment {
                         Log.v("**rprint make:", bike.getMake() + "Model: " + bike.getModel());
 
                         readReportOfStolenQuery.child(snapshot.getKey().toString()).setValue(bike);
+                        reportedSigntings.setText("*Another User has reported a potental sighting your bikes, check mail");
                     }
+
 
                 }
 
@@ -254,7 +257,7 @@ public class WelcomeFragment extends Fragment {
                 }
 
                 if (!list3.isEmpty()) {
-                    startAnim();
+                   // startAnim();
                 }
 
 
@@ -316,46 +319,22 @@ public class WelcomeFragment extends Fragment {
     }
 
 
-//    public void dialogBox() {
-//        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
-//        alertDialogBuilder.setMessage("Click on Image for tag");
-//        alertDialogBuilder.setPositiveButton("Ok",
-//                new DialogInterface.OnClickListener() {
-//
-//                    @Override
-//                    public void onClick(DialogInterface arg0, int arg1) {
-//                    }
-//                });
-//
-//        alertDialogBuilder.setNegativeButton("cancel",
-//                new DialogInterface.OnClickListener() {
-//
-//                    @Override
-//                    public void onClick(DialogInterface arg0, int arg1) {
-//
-//                    }
-//                });
-//
-//        AlertDialog alertDialog = alertDialogBuilder.create();
-//        alertDialog.show();
-//    }
-
 
     //animation for notification of reported bike
-    public void startAnim() {
-        final Animation animation = new AlphaAnimation(1, 0); // Change alpha from fully visible to invisible
-        animation.setDuration(3500); // duration - half a second
-        animation.setInterpolator(new LinearInterpolator()); // do not alter animation rate
-        animation.setRepeatCount(Animation.INFINITE); // Repeat animation infinitely
-        animation.setRepeatMode(Animation.REVERSE);
-
-        imageAnim.setVisibility(View.VISIBLE);
-        imageAnim.startAnimation(animation);
-
-
-        // start the animation!
-        animation.start();
-    }
+//    public void startAnim() {
+//        final Animation animation = new AlphaAnimation(1, 0); // Change alpha from fully visible to invisible
+//        animation.setDuration(3500); // duration - half a second
+//        animation.setInterpolator(new LinearInterpolator()); // do not alter animation rate
+//        animation.setRepeatCount(Animation.INFINITE); // Repeat animation infinitely
+//        animation.setRepeatMode(Animation.REVERSE);
+//
+//        imageAnim.setVisibility(View.VISIBLE);
+//        imageAnim.startAnimation(animation);
+//
+//
+//        // start the animation!
+//        animation.start();
+//    }
 }
 
 
