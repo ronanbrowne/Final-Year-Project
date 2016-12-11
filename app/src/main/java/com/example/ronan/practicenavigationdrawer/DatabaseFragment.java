@@ -401,10 +401,15 @@ public class DatabaseFragment extends Fragment {
                 //user validation make sure inputs not null
                 if ((userInputAddress != null && !userInputAddress.isEmpty()) || (tempRadius != null && !tempRadius.isEmpty())) {
                     r = Integer.parseInt(radius.getText().toString());
-                    //getting co-ordinates
-                    GeocodeAsyncTaskForQuery asyncTaskForQuery = new GeocodeAsyncTaskForQuery();
-                    frameLayout.setVisibility(View.VISIBLE);
-                    asyncTaskForQuery.execute();
+
+                    if(r>50000||r<0){
+                        Toast.makeText(getActivity().getApplicationContext(), "Please enter a radius between 0 and 50,000 meteres", Toast.LENGTH_SHORT).show();
+                   }else{
+                        //getting co-ordinates
+                        GeocodeAsyncTaskForQuery asyncTaskForQuery = new GeocodeAsyncTaskForQuery();
+                        frameLayout.setVisibility(View.VISIBLE);
+                        asyncTaskForQuery.execute();
+                    }
 
 //                    if(asyncTaskForQuery.getStatus() == AsyncTask.Status.FINISHED){
 //                        drawOnMap(userInput, r);

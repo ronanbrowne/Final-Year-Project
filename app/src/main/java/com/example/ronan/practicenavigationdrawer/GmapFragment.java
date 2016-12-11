@@ -61,7 +61,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
 
 
     private GoogleMap gMap;
-    TileOverlay mOverlay;
+    TileOverlay mOverlay ;
 
     // Declare a variable for the cluster manager.
    // private ClusterManager<MyItemMapClusters> mClusterManager;
@@ -232,8 +232,13 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
         defaultMap.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                removeHeatMap();
-                stolenBikesDatabse.addValueEventListener(bikeListener);
+                if(mOverlay!=null) {
+                    removeHeatMap();
+
+                    stolenBikesDatabse.addValueEventListener(bikeListener);
+                }else
+                    Toast.makeText(getActivity().getApplicationContext(), "Already on default map view", Toast.LENGTH_SHORT).show();
+
 
 
             }
