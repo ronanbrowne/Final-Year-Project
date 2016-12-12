@@ -1,7 +1,7 @@
 package com.example.ronan.practicenavigationdrawer;
 
-import android.app.AlertDialog;
-import android.content.DialogInterface;
+import android.app.Activity;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -21,12 +21,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
-import android.widget.AdapterView;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -53,16 +54,15 @@ import com.google.firebase.database.ValueEventListener;
 import com.google.maps.android.SphericalUtil;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 
 import static com.example.ronan.practicenavigationdrawer.R.id.make;
 import static com.example.ronan.practicenavigationdrawer.R.id.mapwhere;
 import static com.example.ronan.practicenavigationdrawer.R.id.model;
+import static com.example.ronan.practicenavigationdrawer.R.id.textView;
 import static com.google.android.gms.wearable.DataMap.TAG;
 
 
@@ -75,7 +75,6 @@ public class DatabaseFragment extends Fragment {
     private FirebaseUser mFirebaseUser;
     private DatabaseReference mDatabaseStolen;
     private DatabaseReference mDatabaseQuery;
-    private DatabaseReference mDatabaseReported;
     SupportMapFragment mSupportMapFragment;
 
     ImageView bike_image;
@@ -83,6 +82,9 @@ public class DatabaseFragment extends Fragment {
     EditText radius;
     Button query;
     Button closeMap;
+    private SeekBar seekBar;
+    private TextView radiousTV;
+
 
     LatLng userInput1 = new LatLng(53.3498, 6.2603);
     LatLng userInput = new LatLng(53.3498, -6.2603);
@@ -94,13 +96,11 @@ public class DatabaseFragment extends Fragment {
     String userInputAddress;
     String email = "";
     int r;
-    String input_from_reported_Location ="";
 
     Circle circle;
     private GoogleMap googleMap;
 
     BikeData mybike = new BikeData();
-    BikeData stolenBike;
 
     ArrayList<Double> latitudeArray = new ArrayList<>();
     ArrayList<Double> longditudeArray = new ArrayList<>();
@@ -108,88 +108,10 @@ public class DatabaseFragment extends Fragment {
     ArrayList<String> bikekey = new ArrayList<>();
 
 
-     ListView myListView = null;
-    DatabaseReference itemRef;
-
-    //dialog listener for pop up to confirm delete
-    DialogInterface.OnClickListener dialogClickListener = new DialogInterface.OnClickListener() {
-        @Override
-        public void onClick(DialogInterface dialog, int which) {
-            switch (which) {
-                case DialogInterface.BUTTON_POSITIVE:
+    ListView myListView = null;
 
 
-                    //custom alert box
-                    AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-                    builder.setTitle("Sighting Location");
-                    //grab custom layout
-                    View viewInflated = LayoutInflater.from(getContext()).inflate(R.layout.report_stolen_dialog, (ViewGroup) getView(), false);
-                    // Set up the input
-                    final EditText input = (EditText) viewInflated.findViewById(R.id.input);
-                    // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
-                    builder.setView(viewInflated);
-
-                    // Set up the buttons
-                    builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            dialog.dismiss();
-                          input_from_reported_Location = input.getText().toString();
-
-                            //set user who reported it
-                            stolenBike.setReportedBy(email);
-                            stolenBike.setReportedDate(getDate());
-                            stolenBike.setReportedLocation(input_from_reported_Location);
-                            stolenBike.setReportedSigting(true);
-
-                            mDatabaseReported.child(itemRef.getKey()).setValue(stolenBike);
-
-                            Log.v("check repoting*", stolenBike.getRegisteredBy());
-                            Log.v("check repoting*", stolenBike.getReportedDate());
-                            Log.v("check repoting*", stolenBike.getReportedLocation());
-                            Log.v("check repoting*", ""+stolenBike.isReportedSigting());
-
-
-                            //feedback
-                            Toast toast = Toast.makeText(getActivity().getApplicationContext(), "Notifiacion sent to origional owner", Toast.LENGTH_SHORT);
-                            toast.show();
-
-
-                        }
-                    });
-                    builder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            dialog.cancel();
-                        }
-                    });
-
-                    builder.show();
-
-
-                    //reported bike gets sent to new DB node , use same key refrence
-                    //we will match these against a users registered bikes on login
-
-
-                    //send email to origional user
-
-
-
-
-
-                    break;
-
-                case DialogInterface.BUTTON_NEGATIVE:
-
-                    //feedback
-                    Toast toastCanceled = Toast.makeText(getActivity().getApplicationContext(), "Canceled", Toast.LENGTH_SHORT);
-                    toastCanceled.show();
-                    break;
-            }
-        }
-    };
-
-
+    int progress =0;
 
 
     //===================================================================================
@@ -231,7 +153,6 @@ public class DatabaseFragment extends Fragment {
         //set up firebase instances also get user email we use this for uniqe DB refrences
         mDatabaseQuery = FirebaseDatabase.getInstance().getReference().child("QueryResults").child(email);
         mDatabaseStolen = FirebaseDatabase.getInstance().getReference().child("Stolen Bikes");
-        mDatabaseReported = FirebaseDatabase.getInstance().getReference().child("Reported Bikes");
 
         mFirebaseUser = FirebaseAuth.getInstance().getCurrentUser();
 
@@ -246,7 +167,7 @@ public class DatabaseFragment extends Fragment {
         mDatabaseStolen.addValueEventListener(bikeListener);
 
         // Inflate the layout for this fragment
-        View rootView = inflater.inflate(R.layout.fragment_database, container, false);
+        final View rootView = inflater.inflate(R.layout.fragment_database, container, false);
 
 
         //handel the sliding map fragment
@@ -274,7 +195,7 @@ public class DatabaseFragment extends Fragment {
                         googleMap.getUiSettings().setAllGesturesEnabled(true);
 
                         //change location of camra based on user input
-                        CameraPosition cameraPosition = new CameraPosition.Builder().target(userInput1).zoom(9f).build();
+                        CameraPosition cameraPosition = new CameraPosition.Builder().target(userInput1).zoom(7f).build();
                         CameraUpdate cameraUpdate = CameraUpdateFactory.newCameraPosition(cameraPosition);
                         googleMap.moveCamera(cameraUpdate);
                     }
@@ -284,16 +205,42 @@ public class DatabaseFragment extends Fragment {
 
 
         street = (EditText) rootView.findViewById(R.id.streetgeo);
-        radius = (EditText) rootView.findViewById(R.id.radius);
+        //  radius = (EditText) rootView.findViewById(R.id.radius);
         query = (Button) rootView.findViewById(R.id.runQuery);
         closeMap = (Button) rootView.findViewById(R.id.closeMap);
         final View loadingIndicator = rootView.findViewById(R.id.loading_indicator);
+        seekBar = (SeekBar) rootView.findViewById(R.id.seekBar);
+        radiousTV = (TextView) rootView.findViewById(R.id.radiusTV);
+
+        radiousTV.setText("Radius: " + seekBar.getProgress() + "km");
+
+
+
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progresValue, boolean fromUser) {
+                progress=0;
+                progress = progresValue;
+                radiousTV.setText("Radius: " + progress + "km");
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+            }
+        });
+
+
 
         //get and initally hide slide up map fragment
         frameLayout = (FrameLayout) rootView.findViewById(R.id.mapwhere);
         frameLayout.setVisibility(View.GONE);
 
-      //  ListView
+        //  ListView
         myListView = (ListView) rootView.findViewById(R.id.list);
         myListView.setDivider(ContextCompat.getDrawable(getActivity(), R.drawable.divider));
         myListView.setDividerHeight(1);
@@ -349,25 +296,6 @@ public class DatabaseFragment extends Fragment {
         //set adapter on our listView
         myListView.setAdapter(bikeAdapter);
 
-
-        myListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-
-                itemRef = bikeAdapter.getRef(i);
-
-                stolenBike = bikeAdapter.getItem(i);
-
-                AlertDialog.Builder builder = new AlertDialog.Builder(view.getContext());
-                builder.setMessage("Are you sure you wish to report a sighting of this bike?" +
-                        "\nthis will notify the origional owner")
-                        .setPositiveButton("Report Sighting", dialogClickListener)
-                        .setNegativeButton("Cancel", dialogClickListener).show();
-
-
-            }
-        });
-
         //click to close map and re-set the listview returning default query of all
         closeMap.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -378,7 +306,7 @@ public class DatabaseFragment extends Fragment {
                 frameLayout.setVisibility(View.GONE);
                 isMapFragmentVisavle =false;
                 myListView.setAdapter(bikeAdapter);
-                radius.setText("");
+                seekBar.setProgress(0);
                 street.setText("");
             }
         });
@@ -395,43 +323,34 @@ public class DatabaseFragment extends Fragment {
                             R.anim.slide);
                     frameLayout.startAnimation(bottomUp);
                 }
-                String tempRadius = radius.getText().toString();
+
                 userInputAddress = street.getText().toString();
 
                 //user validation make sure inputs not null
-                if ((userInputAddress != null && !userInputAddress.isEmpty()) || (tempRadius != null && !tempRadius.isEmpty())) {
-                    r = Integer.parseInt(radius.getText().toString());
+                if ((userInputAddress != null && !userInputAddress.isEmpty()) && (progress>0)) {
+                    //getting co-ordinates
+                    GeocodeAsyncTaskForQuery asyncTaskForQuery = new GeocodeAsyncTaskForQuery();
+                    frameLayout.setVisibility(View.VISIBLE);
+                    asyncTaskForQuery.execute();
 
-                    if(r>50000||r<0){
-                        Toast.makeText(getActivity().getApplicationContext(), "Please enter a radius between 0 and 50,000 meteres", Toast.LENGTH_SHORT).show();
-                   }else{
-                        //getting co-ordinates
-                        GeocodeAsyncTaskForQuery asyncTaskForQuery = new GeocodeAsyncTaskForQuery();
-                        frameLayout.setVisibility(View.VISIBLE);
-                        asyncTaskForQuery.execute();
-                    }
-
-//                    if(asyncTaskForQuery.getStatus() == AsyncTask.Status.FINISHED){
-//                        drawOnMap(userInput, r);
-//                    }
+                    //hide keyboard
+                    hideKeyboardFrom(getActivity().getApplicationContext(),rootView);
 
                 } else {
-                    Toast toast = Toast.makeText(getActivity().getApplicationContext(), "Query fields can not be left blank", Toast.LENGTH_SHORT);
-                    toast.show();
-                }
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    Toast.makeText(getActivity().getApplicationContext(), "Query fields can not be left blank", Toast.LENGTH_SHORT).show();
                 }
 
-                //method to draw circle / display markers / change listview
-             //   drawOnMap(userInput, r);
             }
         });
 
 
         return rootView;
+    }
+
+    //method to hide the keyboard just makes UI a bit cleaner after we run query
+    public static void hideKeyboardFrom(Context context, View view) {
+        InputMethodManager imm = (InputMethodManager) context.getSystemService(Activity.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
     }
 
 
@@ -492,7 +411,10 @@ public class DatabaseFragment extends Fragment {
                 latitude = address.getLatitude();
                 Longitude = address.getLongitude();
                 userInput = new LatLng(latitude, Longitude);
-               drawOnMap(userInput, r);
+
+                if(progress!=0) {
+                    drawOnMap(userInput, (progress * 1000));
+                }
 
                 Log.v("Co-ordinates***", "Latitude: " + address.getLatitude() + "\n" +
                         "Longitude: " + address.getLongitude() + "\n" +
@@ -557,13 +479,13 @@ public class DatabaseFragment extends Fragment {
 
 
         for (BikeData bike : queryBike) {
-             mDatabaseQuery.push().setValue(bike);
+            mDatabaseQuery.push().setValue(bike);
         }
 
         handelQuery();
 
         //display markers
-        CameraPosition cameraPosition = new CameraPosition.Builder().target(latLng).zoom(11f).build();
+        CameraPosition cameraPosition = new CameraPosition.Builder().target(latLng).zoom(8f).build();
         CameraUpdate cameraUpdate = CameraUpdateFactory.newCameraPosition(cameraPosition);
         googleMap.moveCamera(cameraUpdate);
 
@@ -612,12 +534,7 @@ public class DatabaseFragment extends Fragment {
 
     }//end query
 
-    //get currwnt date instanc use this to log when bike sighting was reported
-    public String getDate() {
-        Calendar cal = Calendar.getInstance();
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
-        return sdf.format(cal.getTime());
-    }
+
 
 }//end class
 

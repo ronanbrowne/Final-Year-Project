@@ -62,7 +62,6 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
 
     private GoogleMap gMap;
     TileOverlay mOverlay ;
-
     // Declare a variable for the cluster manager.
    // private ClusterManager<MyItemMapClusters> mClusterManager;
 
@@ -107,7 +106,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
 
 
                 //move Camera and add marker to coOrdinates position
-                gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(coOrdinates, 6));
+             //   gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(coOrdinates, 6));
 
 
 
