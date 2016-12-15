@@ -1,7 +1,9 @@
 package com.example.ronan.practicenavigationdrawer;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -22,6 +24,7 @@ import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -58,6 +61,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Calendar;
+import java.text.SimpleDateFormat;
+
 
 import static com.example.ronan.practicenavigationdrawer.R.id.make;
 import static com.example.ronan.practicenavigationdrawer.R.id.mapwhere;
@@ -75,6 +81,7 @@ public class DatabaseFragment extends Fragment {
     private FirebaseUser mFirebaseUser;
     private DatabaseReference mDatabaseStolen;
     private DatabaseReference mDatabaseQuery;
+    private DatabaseReference mDatabaseReported;
     SupportMapFragment mSupportMapFragment;
 
     ImageView bike_image;
@@ -96,11 +103,15 @@ public class DatabaseFragment extends Fragment {
     String userInputAddress;
     String email = "";
     int r;
+    String input_from_reported_Location ="";
+
 
     Circle circle;
     private GoogleMap googleMap;
 
     BikeData mybike = new BikeData();
+    BikeData stolenBike;
+
 
     ArrayList<Double> latitudeArray = new ArrayList<>();
     ArrayList<Double> longditudeArray = new ArrayList<>();
@@ -109,9 +120,88 @@ public class DatabaseFragment extends Fragment {
 
 
     ListView myListView = null;
+    DatabaseReference itemRef;
 
 
     int progress =0;
+
+    //dialog listener for pop up to confirm delete
+    DialogInterface.OnClickListener dialogClickListener = new DialogInterface.OnClickListener() {
+        @Override
+        public void onClick(DialogInterface dialog, int which) {
+            switch (which) {
+                case DialogInterface.BUTTON_POSITIVE:
+
+
+                    //custom alert box
+                    AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+                    builder.setTitle("Sighting Location");
+                    //grab custom layout
+                    View viewInflated = LayoutInflater.from(getContext()).inflate(R.layout.report_stolen_dialog, (ViewGroup) getView(), false);
+                    // Set up the input
+                    final EditText input = (EditText) viewInflated.findViewById(R.id.input);
+                    // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
+                    builder.setView(viewInflated);
+
+                    // Set up the buttons
+                    builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.dismiss();
+                            input_from_reported_Location = input.getText().toString();
+
+                            //set user who reported it
+                            stolenBike.setReportedBy(email);
+                            stolenBike.setReportedDate(getDate());
+                            stolenBike.setReportedLocation(input_from_reported_Location);
+                            stolenBike.setReportedSigting(true);
+
+                            mDatabaseReported.child(itemRef.getKey()).setValue(stolenBike);
+
+                            Log.v("check repoting*", stolenBike.getRegisteredBy());
+                            Log.v("check repoting*", stolenBike.getReportedDate());
+                            Log.v("check repoting*", stolenBike.getReportedLocation());
+                            Log.v("check repoting*", ""+stolenBike.isReportedSigting());
+
+
+                            //feedback
+                            Toast toast = Toast.makeText(getActivity().getApplicationContext(), "Notifiacion sent to origional owner", Toast.LENGTH_SHORT);
+                            toast.show();
+
+
+                        }
+                    });
+                    builder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    });
+
+                    builder.show();
+
+
+                    //reported bike gets sent to new DB node , use same key refrence
+                    //we will match these against a users registered bikes on login
+
+
+                    //send email to origional user
+
+
+
+
+
+                    break;
+
+                case DialogInterface.BUTTON_NEGATIVE:
+
+                    //feedback
+                    Toast toastCanceled = Toast.makeText(getActivity().getApplicationContext(), "Canceled", Toast.LENGTH_SHORT);
+                    toastCanceled.show();
+                    break;
+            }
+        }
+    };
 
 
     //===================================================================================
@@ -153,6 +243,8 @@ public class DatabaseFragment extends Fragment {
         //set up firebase instances also get user email we use this for uniqe DB refrences
         mDatabaseQuery = FirebaseDatabase.getInstance().getReference().child("QueryResults").child(email);
         mDatabaseStolen = FirebaseDatabase.getInstance().getReference().child("Stolen Bikes");
+        mDatabaseReported = FirebaseDatabase.getInstance().getReference().child("Reported Bikes");
+
 
         mFirebaseUser = FirebaseAuth.getInstance().getCurrentUser();
 
@@ -295,6 +387,26 @@ public class DatabaseFragment extends Fragment {
         };
         //set adapter on our listView
         myListView.setAdapter(bikeAdapter);
+
+
+        myListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+
+                itemRef = bikeAdapter.getRef(i);
+
+                stolenBike = bikeAdapter.getItem(i);
+
+                AlertDialog.Builder builder = new AlertDialog.Builder(view.getContext());
+                builder.setMessage("Are you sure you wish to report a sighting of this bike?" +
+                        "\nthis will notify the origional owner")
+                        .setPositiveButton("Report Sighting", dialogClickListener)
+                        .setNegativeButton("Cancel", dialogClickListener).show();
+
+
+            }
+        });
+
 
         //click to close map and re-set the listview returning default query of all
         closeMap.setOnClickListener(new View.OnClickListener() {
@@ -534,6 +646,12 @@ public class DatabaseFragment extends Fragment {
 
     }//end query
 
+    //get current date instanc use this to log when bike sighting was reported
+    public String getDate() {
+        Calendar cal = Calendar.getInstance();
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+        return sdf.format(cal.getTime());
+    }
 
 
 }//end class
